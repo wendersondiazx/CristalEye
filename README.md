@@ -8,7 +8,7 @@
 
 ### C++ library for animated and expressive robot eyes on graphical displays.
 
-WELABSDEV CristalEye is a lightweight, modern and object-oriented C++ library designed to create animated, expressive and autonomous robot eyes on OLED and graphical displays.
+CristalEye is a lightweight, modern and object-oriented C++ library designed to create animated, expressive and autonomous robot eyes on OLED and graphical displays.
 
 The library is built around the drawing primitives provided by [Adafruit GFX](https://github.com/adafruit/Adafruit-GFX-Library) and provides smooth mathematical interpolation (tweening), procedural behaviors and non-blocking animations without using `delay()`.
 
