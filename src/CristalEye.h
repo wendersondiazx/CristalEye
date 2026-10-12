@@ -1,5 +1,5 @@
 /*
-* welabsdev CristalEye ROBOT
+* CristalEye - animated robot eyes
  * Draws smoothly animated robot eyes on OLED displays, based on the Adafruit GFX 
  * library's graphics primitives, such as rounded rectangles and triangles.
  *   
@@ -20,13 +20,13 @@
  */
 
 
-#ifndef _FLUXGARAGE_ROBOEYES_H
-#define _FLUXGARAGE_ROBOEYES_H
+#ifndef CRISTALEYE_H
+#define CRISTALEYE_H
+
+#include <Arduino.h>
 
 
 // Display colors
-uint8_t BGCOLOR = 0; // background and overlays
-uint8_t MAINCOLOR = 1; // drawings
 
 // For mood type switch
 #define DEFAULT 0
@@ -51,9 +51,9 @@ uint8_t MAINCOLOR = 1; // drawings
 
 
 // Constructor: takes a reference to the active Adafruit display object (e.g., Adafruit_SSD1327)
-// Eg: roboEyes<Adafruit_SSD1327> = eyes(display);
+// Eg: CristalEye<Adafruit_SSD1327> = eyes(display);
 template<typename AdafruitDisplay>
-class RoboEyes
+class CristalEye
 {
 private:
 
@@ -61,13 +61,16 @@ private:
 
 public:
 
+uint8_t BGCOLOR = 0; // per-instance background
+uint8_t MAINCOLOR = 1; // per-instance foreground
+
 // Reference to Adafruit display object
 AdafruitDisplay *display;
 
 // For general setup - screen size and max. frame rate
 int screenWidth = 128; // OLED display width, in pixels
 int screenHeight = 64; // OLED display height, in pixels
-int frameInterval = 20; // default value for 50 frames per second (1000/50 = 20 milliseconds)
+unsigned long frameInterval = 20; // default value for 50 frames per second (1000/50 = 20 milliseconds)
 unsigned long fpsTimer = 0; // for timing the frames per second
 
 // For controlling mood types and expressions
@@ -111,7 +114,7 @@ byte eyeRborderRadiusCurrent = eyeRborderRadiusDefault;
 byte eyeRborderRadiusNext = eyeRborderRadiusDefault;
 
 // EYE LEFT - Coordinates
-int eyeLxDefault = ((screenWidth)-(eyeLwidthDefault+spaceBetweenDefault+eyeRwidthDefault))/2;
+int eyeLxDefault = (screenWidth - eyeLwidthDefault - 10 - eyeRwidthDefault)/2;
 int eyeLyDefault = ((screenHeight-eyeLheightDefault)/2);
 int eyeLx = eyeLxDefault;
 int eyeLy = eyeLyDefault;
@@ -119,7 +122,7 @@ int eyeLxNext = eyeLx;
 int eyeLyNext = eyeLy;
 
 // EYE RIGHT - Coordinates
-int eyeRxDefault = eyeLx+eyeLwidthCurrent+spaceBetweenDefault;
+int eyeRxDefault = eyeLx + eyeLwidthCurrent + 10;
 int eyeRyDefault = eyeLy;
 int eyeRx = eyeRxDefault;
 int eyeRy = eyeRyDefault;
@@ -189,7 +192,7 @@ byte sweatBorderradius = 3;
 int sweat1XPosInitial = 2;
 int sweat1XPos;
 float sweat1YPos = 2;
-int sweat1YPosMax;
+int sweat1YPosMax = 12;
 float sweat1Height = 2;
 float sweat1Width = 1;
 
@@ -197,7 +200,7 @@ float sweat1Width = 1;
 int sweat2XPosInitial = 2;
 int sweat2XPos;
 float sweat2YPos = 2;
-int sweat2YPosMax;
+int sweat2YPosMax = 12;
 float sweat2Height = 2;
 float sweat2Width = 1;
 
@@ -205,7 +208,7 @@ float sweat2Width = 1;
 int sweat3XPosInitial = 2;
 int sweat3XPos;
 float sweat3YPos = 2;
-int sweat3YPosMax;
+int sweat3YPosMax = 12;
 float sweat3Height = 2;
 float sweat3Width = 1;
 
@@ -214,17 +217,33 @@ float sweat3Width = 1;
 //  GENERAL METHODS
 //*********************************************************************************************
 
-RoboEyes(AdafruitDisplay &disp) : display(&disp) {};
+CristalEye(AdafruitDisplay &disp) : display(&disp) {};
 
-// Startup RoboEyes with defined screen-width, screen-height and max. frames per second
+// Startup CristalEye with defined screen-width, screen-height and max. frames per second
 void begin(int width, int height, byte frameRate) {
-	screenWidth = width; // OLED display width, in pixels
-	screenHeight = height; // OLED display height, in pixels
-  display->clearDisplay(); // clear the display buffer
-  display->display(); // show empty screen
-  eyeLheightCurrent = 1; // start with closed eyes
-  eyeRheightCurrent = 1; // start with closed eyes
-  setFramerate(frameRate); // calculate frame interval based on defined frameRate
+  screenWidth = width > 0 ? width : 1;
+  screenHeight = height > 0 ? height : 1;
+  setFramerate(frameRate);
+  eyeLwidthCurrent = eyeLwidthNext = eyeLwidthDefault;
+  eyeRwidthCurrent = eyeRwidthNext = eyeRwidthDefault;
+  eyeLheightCurrent = eyeRheightCurrent = 1;
+  eyeLheightNext = eyeLheightDefault;
+  eyeRheightNext = eyeRheightDefault;
+  eyeL_open = eyeR_open = true;
+  spaceBetweenCurrent = spaceBetweenNext = spaceBetweenDefault;
+  eyeLxDefault = (screenWidth - eyeLwidthDefault - spaceBetweenDefault - eyeRwidthDefault) / 2;
+  eyeLyDefault = (screenHeight - eyeLheightDefault) / 2;
+  eyeLx = eyeLxNext = eyeLxDefault;
+  eyeLy = eyeLyNext = eyeLyDefault;
+  eyeRxDefault = eyeLxDefault + eyeLwidthDefault + spaceBetweenDefault;
+  eyeRyDefault = eyeLyDefault;
+  eyeRx = eyeRxNext = eyeRxDefault;
+  eyeRy = eyeRyNext = eyeRyDefault;
+  fpsTimer = millis() - frameInterval;
+  blinktimer = millis() + 1000UL * (unsigned long)(blinkInterval > 0 ? blinkInterval : 1);
+  idleAnimationTimer = millis() + 1000UL * (unsigned long)(idleInterval > 0 ? idleInterval : 1);
+  display->clearDisplay();
+  display->display();
 }
 
 void update(){
@@ -242,7 +261,7 @@ void update(){
 
 // Calculate frame interval based on defined frameRate
 void setFramerate(byte fps){
-  frameInterval = 1000/fps;
+  frameInterval = fps ? (1000UL / fps ? 1000UL / fps : 1UL) : 20UL;
 }
 
 // Set color values
@@ -419,12 +438,14 @@ void setSweat (bool sweatBit) {
 
 // Returns the max x position for left eye
 int getScreenConstraint_X(){
-  return screenWidth-eyeLwidthCurrent-spaceBetweenCurrent-eyeRwidthCurrent;
+  int freeSpace = screenWidth - eyeLwidthCurrent - spaceBetweenCurrent - (cyclops ? 0 : eyeRwidthCurrent);
+  return freeSpace > 0 ? freeSpace : 0;
 } 
 
 // Returns the max y position for left eye
 int getScreenConstraint_Y(){
- return screenHeight-eyeLheightDefault; // using default height here, because height will vary when blinking and in curious mode
+ int freeSpace = screenHeight - eyeLheightDefault;
+  return freeSpace > 0 ? freeSpace : 0; // using default height here, because height will vary when blinking and in curious mode
 }
 
 
@@ -519,12 +540,10 @@ void drawEyes(){
 
   // Left eye height
   eyeLheightCurrent = (eyeLheightCurrent + eyeLheightNext + eyeLheightOffset)/2;
-  eyeLy+= ((eyeLheightDefault-eyeLheightCurrent)/2); // vertical centering of eye when closing
-  eyeLy-= eyeLheightOffset/2;
+  // Vertical centering is calculated for rendering without accumulating drift.
   // Right eye height
   eyeRheightCurrent = (eyeRheightCurrent + eyeRheightNext + eyeRheightOffset)/2;
-  eyeRy+= (eyeRheightDefault-eyeRheightCurrent)/2; // vertical centering of eye when closing
-  eyeRy-= eyeRheightOffset/2;
+  
 
 
   // Open eyes again after closing them
@@ -562,9 +581,9 @@ void drawEyes(){
   //// APPLYING MACRO ANIMATIONS ////
 
 	if(autoblinker){
-		if(millis() >= blinktimer){
+		if((int32_t)(millis() - blinktimer) >= 0){
 		blink();
-		blinktimer = millis()+(blinkInterval*1000)+(random(blinkIntervalVariation)*1000); // calculate next time for blinking
+		blinktimer = millis()+((unsigned long)(blinkInterval > 0 ? blinkInterval : 1)*1000UL)+(random((long)(blinkIntervalVariation > 0 ? blinkIntervalVariation : 0) + 1)*1000); // calculate next time for blinking
 		}
 	}
 
@@ -574,7 +593,7 @@ void drawEyes(){
       setVFlicker(1, 5);
       laughAnimationTimer = millis();
       laughToggle = 0;
-    } else if(millis() >= laughAnimationTimer+laughAnimationDuration){
+    } else if((unsigned long)(millis() - laughAnimationTimer) >= (unsigned long)laughAnimationDuration){
       setVFlicker(0, 0);
       laughToggle = 1;
       laugh=0; 
@@ -587,7 +606,7 @@ void drawEyes(){
       setHFlicker(1, 20);
       confusedAnimationTimer = millis();
       confusedToggle = 0;
-    } else if(millis() >= confusedAnimationTimer+confusedAnimationDuration){
+    } else if((unsigned long)(millis() - confusedAnimationTimer) >= (unsigned long)confusedAnimationDuration){
       setHFlicker(0, 0);
       confusedToggle = 1;
       confused=0; 
@@ -596,14 +615,15 @@ void drawEyes(){
 
   // Idle - eyes moving to random positions on screen
   if(idle){
-    if(millis() >= idleAnimationTimer){
-      eyeLxNext = random(getScreenConstraint_X());
-      eyeLyNext = random(getScreenConstraint_Y());
-      idleAnimationTimer = millis()+(idleInterval*1000)+(random(idleIntervalVariation)*1000); // calculate next time for eyes repositioning
+    if((int32_t)(millis() - idleAnimationTimer) >= 0){
+      eyeLxNext = random((long)getScreenConstraint_X() + 1);
+      eyeLyNext = random((long)getScreenConstraint_Y() + 1);
+      idleAnimationTimer = millis()+((unsigned long)(idleInterval > 0 ? idleInterval : 1)*1000UL)+(random((long)(idleIntervalVariation > 0 ? idleIntervalVariation : 0) + 1)*1000); // calculate next time for eyes repositioning
     }
   }
 
-  // Adding offsets for horizontal flickering/shivering
+  // Apply flicker temporarily: do not accumulate offsets in the base geometry.
+  const int baseLx = eyeLx, baseRx = eyeRx, baseLy = eyeLy, baseRy = eyeRy;
   if(hFlicker){
     if(hFlickerAlternate) {
       eyeLx += hFlickerAmplitude;
@@ -627,12 +647,10 @@ void drawEyes(){
     vFlickerAlternate = !vFlickerAlternate;
   }
 
-  // Cyclops mode, set second eye's size and space between to 0
-  if(cyclops){
-    eyeRwidthCurrent = 0;
-    eyeRheightCurrent = 0;
-    spaceBetweenCurrent = 0;
-  }
+
+  // Adjust render position to keep shrinking eyes vertically centered.
+  eyeLy += (eyeLheightDefault - eyeLheightCurrent - eyeLheightOffset) / 2;
+  eyeRy += (eyeRheightDefault - eyeRheightCurrent - eyeRheightOffset) / 2;
 
   //// ACTUAL DRAWINGS ////
 
@@ -691,7 +709,7 @@ void drawEyes(){
 
       // Sweat drop 2 -> center area
       if(sweat2YPos <= sweat2YPosMax){sweat2YPos+=0.5;} // vertical movement from initial to max
-      else {sweat2XPosInitial = random((screenWidth-60))+30; sweat2YPos = 2; sweat2YPosMax = (random(10)+10); sweat2Width = 1; sweat2Height = 2;} // if max vertical position is reached: reset all values for next drop
+      else {sweat2XPosInitial = random((long)(screenWidth > 60 ? screenWidth - 60 : 1)) + (screenWidth > 60 ? 30 : 0); sweat2YPos = 2; sweat2YPosMax = (random(10)+10); sweat2Width = 1; sweat2Height = 2;} // if max vertical position is reached: reset all values for next drop
       if(sweat2YPos <= sweat2YPosMax/2){sweat2Width+=0.5; sweat2Height+=0.5;} // shape grows in first half of animation ...
       else {sweat2Width-=0.1; sweat2Height-=0.5;} // ... and shrinks in second half of animation
       sweat2XPos = sweat2XPosInitial-(sweat2Width/2); // keep the growing shape centered to initial x position
@@ -708,11 +726,16 @@ void drawEyes(){
     }
 
   display->display(); // show drawings on display
+  eyeLx = baseLx; eyeRx = baseRx; eyeLy = baseLy; eyeRy = baseRy;
 
 } // end of drawEyes method
 
 
-}; // end of class roboEyes
+}; // end of class CristalEye
+
+// Legacy class alias for sketches using the previous public type name.
+template<typename AdafruitDisplay>
+using RoboEyes = CristalEye<AdafruitDisplay>;
 
 
 #endif
